@@ -1,12 +1,3817 @@
 <!DOCTYPE html>
-<html lang="">
-  <head>
-    <meta charset="utf-8">
-    <title></title>
-  </head>
-  <body>
-    <header></header>
-    <main></main>
-    <footer></footer>
-  </body>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Microbi 2.0 — Simulador Von Neumann</title>
+
+<style>
+
+:root{
+    --bg:#07111f;
+    --panel:#0d1b2e;
+    --panel2:#10243b;
+    --line:#203852;
+    --text:#e7f0fb;
+    --muted:#8da4bd;
+    --cyan:#39d0ff;
+    --green:#39e58c;
+    --amber:#ffc857;
+    --red:#ff637d;
+    --purple:#a78bfa;
+    --shadow:0 18px 50px #0005;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:
+        radial-gradient(
+            circle at 70% 0,
+            #123557 0,
+            #07111f 38%,
+            #050c16 100%
+        );
+    color:var(--text);
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    line-height:1.45;
+}
+
+
+/* =========================
+   CABECERA
+========================= */
+
+header{
+    height:72px;
+    border-bottom:1px solid var(--line);
+    background:#081526e8;
+    backdrop-filter:blur(12px);
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 28px;
+
+    position:sticky;
+    top:0;
+    z-index:20;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.chip{
+    width:42px;
+    height:42px;
+
+    border:1px solid #3ad8ff66;
+    border-radius:12px;
+
+    display:grid;
+    place-items:center;
+
+    background:#0e3047;
+    color:var(--cyan);
+
+    font-size:22px;
+
+    box-shadow:0 0 25px #39d0ff22;
+}
+
+.brand b{
+    font-size:18px;
+}
+
+.brand small{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+}
+
+.status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+
+    color:var(--muted);
+}
+
+.dot{
+    width:8px;
+    height:8px;
+
+    border-radius:50%;
+
+    background:var(--red);
+
+    box-shadow:0 0 10px currentColor;
+}
+
+.running .dot{
+    background:var(--green);
+}
+
+
+/* =========================
+   CONTENIDO PRINCIPAL
+========================= */
+
+main{
+    max-width:1500px;
+    margin:auto;
+    padding:26px;
+}
+
+.layout{
+    display:grid;
+    grid-template-columns:1.25fr .75fr;
+    gap:18px;
+}
+
+.stack{
+    display:grid;
+    gap:18px;
+}
+
+
+/* =========================
+   PANELES
+========================= */
+
+.panel{
+    background:
+        linear-gradient(
+            145deg,
+            #0d1b2e,
+            #0a1727
+        );
+
+    border:1px solid var(--line);
+    border-radius:16px;
+
+    box-shadow:var(--shadow);
+
+    overflow:hidden;
+}
+
+.head{
+    padding:15px 18px;
+
+    border-bottom:1px solid var(--line);
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.head h2{
+    font-size:14px;
+    margin:0;
+    letter-spacing:.2px;
+}
+
+.head span{
+    color:var(--muted);
+    font-size:11px;
+}
+
+.body{
+    padding:16px;
+}
+
+
+/* =========================
+   EDITOR
+========================= */
+
+textarea{
+    width:100%;
+    height:260px;
+
+    resize:vertical;
+
+    background:#06101c;
+    color:#b9e8ff;
+
+    border:1px solid #24435f;
+    border-radius:12px;
+
+    padding:15px;
+
+    font:
+        13px/1.65
+        "JetBrains Mono",
+        Consolas,
+        monospace;
+
+    outline:none;
+
+    tab-size:4;
+}
+
+textarea:focus{
+    border-color:var(--cyan);
+
+    box-shadow:
+        0 0 0 3px
+        #39d0ff12;
+}
+
+
+/* =========================
+   BOTONES
+========================= */
+
+.toolbar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+
+    margin-top:11px;
+}
+
+.btn{
+    border:1px solid #294761;
+
+    background:#132a42;
+
+    color:#dcecff;
+
+    border-radius:9px;
+
+    padding:9px 13px;
+
+    cursor:pointer;
+
+    font-weight:700;
+}
+
+.btn:hover{
+    border-color:#4e789b;
+    background:#183653;
+}
+
+.btn.primary{
+    background:#087ca3;
+    border-color:#13bce9;
+    color:white;
+}
+
+.btn.green{
+    background:#11663f;
+    border-color:#29d17d;
+}
+
+.btn.red{
+    background:#61283a;
+    border-color:#e95773;
+}
+
+.btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
+
+/* =========================
+   CPU
+========================= */
+
+.cpu-grid{
+    display:grid;
+
+    grid-template-columns:
+        repeat(3,1fr);
+
+    gap:9px;
+}
+
+.reg{
+    background:#071321;
+
+    border:1px solid #1d3852;
+
+    border-radius:10px;
+
+    padding:10px;
+}
+
+.reg label{
+    display:block;
+
+    color:var(--muted);
+
+    font:
+        10px
+        monospace;
+
+    margin-bottom:4px;
+}
+
+.reg strong{
+    font:
+        700 16px
+        monospace;
+
+    color:var(--cyan);
+}
+
+.flag{
+    color:var(--amber)!important;
+}
+
+.state{
+    margin-top:10px;
+
+    border-radius:9px;
+
+    padding:9px 11px;
+
+    background:#081625;
+
+    border:1px solid #1c344c;
+
+    color:var(--muted);
+}
+
+.state b{
+    color:var(--text);
+}
+
+
+/* =========================
+   MEMORIA
+========================= */
+
+.memory{
+    display:grid;
+
+    grid-template-columns:
+        repeat(16,1fr);
+
+    gap:4px;
+}
+
+.cell{
+    height:31px;
+
+    border:1px solid #183149;
+
+    background:#071321;
+
+    border-radius:4px;
+
+    display:grid;
+    place-items:center;
+
+    font:
+        9px
+        monospace;
+
+    color:#7892aa;
+
+    cursor:pointer;
+
+    position:relative;
+}
+
+.cell:hover{
+    border-color:#4a7392;
+}
+
+.cell.active{
+    background:#123e54;
+    border-color:var(--cyan);
+    color:#fff;
+}
+
+.cell.pc{
+    outline:
+        2px solid
+        var(--amber);
+
+    outline-offset:-2px;
+}
+
+.cell .addr{
+    position:absolute;
+
+    top:1px;
+    left:3px;
+
+    font-size:7px;
+
+    color:#49627a;
+}
+
+
+/* =========================
+   CODIGO MAQUINA
+========================= */
+
+.machine{
+    font:
+        11px
+        monospace;
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(8,1fr);
+
+    gap:5px;
+}
+
+.machine div{
+    padding:6px;
+
+    background:#071321;
+
+    border:1px solid #173149;
+
+    border-radius:5px;
+
+    text-align:center;
+}
+
+.machine .active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+}
+
+
+/* =========================
+   INSTRUCCIONES
+========================= */
+
+.isa{
+    display:grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap:6px;
+}
+
+.ins{
+    display:flex;
+
+    justify-content:space-between;
+
+    padding:7px 9px;
+
+    background:#081625;
+
+    border:1px solid #19334c;
+
+    border-radius:7px;
+
+    font:
+        11px
+        monospace;
+}
+
+.ins b{
+    color:var(--cyan);
+}
+
+.ins span{
+    color:var(--muted);
+}
+
+
+/* =========================
+   ENTRADAS / SALIDAS
+========================= */
+
+.io{
+    display:grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap:12px;
+}
+
+.leds{
+    display:flex;
+
+    gap:7px;
+
+    flex-wrap:wrap;
+}
+
+.led{
+    width:22px;
+    height:22px;
+
+    border-radius:50%;
+
+    background:#2b1720;
+
+    border:2px solid #512637;
+}
+
+.led.on{
+    background:#ff526e;
+
+    border-color:#ff8a9b;
+
+    box-shadow:
+        0 0 14px
+        #ff526e;
+}
+
+.switches{
+    display:grid;
+
+    grid-template-columns:
+        repeat(8,1fr);
+
+    gap:5px;
+}
+
+.sw{
+    height:34px;
+
+    border:1px solid #29435b;
+
+    background:#0a1929;
+
+    border-radius:6px;
+
+    color:#71879b;
+
+    cursor:pointer;
+}
+
+.sw.on{
+    background:#17573e;
+
+    color:var(--green);
+
+    border-color:#2acb7b;
+}
+
+
+/* =========================
+   LOG
+========================= */
+
+.log{
+    height:170px;
+
+    overflow:auto;
+
+    background:#050c14;
+
+    border:1px solid #183149;
+
+    border-radius:10px;
+
+    padding:10px;
+
+    font:
+        11px/1.7
+        monospace;
+
+    color:#91a8bc;
+}
+
+.log .ok{
+    color:var(--green);
+}
+
+.log .warn{
+    color:var(--amber);
+}
+
+.log .err{
+    color:var(--red);
+}
+
+
+/* =========================
+   TEXTO
+========================= */
+
+.tip{
+    color:var(--muted);
+
+    font-size:12px;
+
+    margin:
+        0 0 12px;
+}
+
+.speed{
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    color:var(--muted);
+
+    font-size:12px;
+
+    margin-top:12px;
+}
+
+.speed input{
+    accent-color:var(--cyan);
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:1050px){
+
+    .layout{
+        grid-template-columns:1fr;
+    }
+
+    .isa{
+        grid-template-columns:
+            repeat(3,1fr);
+    }
+
+}
+
+
+@media(max-width:650px){
+
+    main{
+        padding:12px;
+    }
+
+    .memory{
+        grid-template-columns:
+            repeat(8,1fr);
+    }
+
+    .cpu-grid{
+        grid-template-columns:
+            repeat(2,1fr);
+    }
+
+    .isa{
+        grid-template-columns:1fr;
+    }
+
+    .io{
+        grid-template-columns:1fr;
+    }
+
+    header{
+        padding:0 14px;
+    }
+
+    .brand small{
+        display:none;
+    }
+
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<header>
+
+    <div class="brand">
+
+        <div class="chip">
+            µ
+        </div>
+
+        <div>
+
+            <b>
+                Microbi 2.0
+            </b>
+
+            <small>
+                Simulador de microprocessador educatiu
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <div class="status" id="status">
+
+        <i class="dot"></i>
+
+        <span>
+            Aturat
+        </span>
+
+    </div>
+
+</header>
+
+
+
+<main>
+
+
+<div class="layout">
+
+
+<!-- =====================================================
+     COLUMNA ESQUERRA
+===================================================== -->
+
+<section class="stack">
+
+
+<!-- EDITOR -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            📝 Editor Assembler
+        </h2>
+
+        <span>
+            Programa
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <p class="tip">
+
+            Escriu una instrucció per línia.
+            Els comentaris comencen amb
+            <b>;</b>.
+
+            Exemple:
+
+            <b>LDA #6</b>
+
+            ·
+
+            <b>MUL #7</b>
+
+            ·
+
+            <b>OUT 0</b>
+
+            ·
+
+            <b>HLT</b>
+
+        </p>
+
+
+<textarea id="editor" spellcheck="false">; 6 × 7 = 42
+LDA #6
+MUL #7
+OUT 0
+HLT</textarea>
+
+
+        <div class="toolbar">
+
+            <button
+                class="btn primary"
+                id="assemble">
+
+                ⚙️ Assemblar
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="clear">
+
+                🗑️ Netejar
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="example">
+
+                ✨ Exemple
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="loop">
+
+                🔁 Exemple bucle
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- MEMORIA -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            💾 Memòria · 256 bytes
+        </h2>
+
+        <span>
+            0x00–0xFF
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="memory"
+            id="memory">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- CODIGO MAQUINA -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            🔢 Codi màquina
+        </h2>
+
+        <span>
+            Opcode + operand
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="machine"
+            id="machine">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- LOG -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            📜 Log d'execució
+        </h2>
+
+        <span>
+            Fetch → Decode → Execute
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="log"
+            id="log">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     COLUMNA DRETA
+===================================================== -->
+
+<aside class="stack">
+
+
+<!-- CPU -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            🧠 CPU
+        </h2>
+
+        <span>
+            Von Neumann
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+
+        <div class="cpu-grid">
+
+
+            <div class="reg">
+
+                <label>
+                    PC · Program Counter
+                </label>
+
+                <strong id="pc">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    IR · Instruction Register
+                </label>
+
+                <strong id="ir">
+                    0000
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    AC · Accumulator
+                </label>
+
+                <strong id="ac">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    MAR · Memory Address
+                </label>
+
+                <strong id="mar">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    MDR · Memory Data
+                </label>
+
+                <strong id="mdr">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    Z · Zero flag
+                </label>
+
+                <strong
+                    class="flag"
+                    id="z">
+
+                    0
+
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+        <div class="state">
+
+            Estat:
+
+            <b id="cpuState">
+                Aturat
+            </b>
+
+            ·
+
+            Cicle:
+
+            <b id="cycle">
+                —
+            </b>
+
+        </div>
+
+
+        <div class="toolbar">
+
+
+            <button
+                class="btn"
+                id="step">
+
+                ⏭️ Step
+
+            </button>
+
+
+            <button
+                class="btn green"
+                id="run">
+
+                ▶️ Run
+
+            </button>
+
+
+            <button
+                class="btn red"
+                id="pause">
+
+                ⏸️ Pause
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="reset">
+
+                ⟲ Reset
+
+            </button>
+
+
+        </div>
+
+
+        <div class="speed">
+
+            Velocitat
+
+            <input
+                id="speed"
+                type="range"
+                min="1"
+                max="12"
+                value="5">
+
+            <b id="speedVal">
+                5 Hz
+            </b>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ISA -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            📚 Joc d'instruccions
+        </h2>
+
+        <span>
+            ISA
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="isa"
+            id="isa">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- E/S -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            🔌 E/S
+        </h2>
+
+        <span>
+            Ports 0–7
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div class="io">
+
+
+            <div>
+
+                <small style="color:var(--muted)">
+                    Eixides · LEDs
+                </small>
+
+
+                <div
+                    class="leds"
+                    id="leds">
+
+                </div>
+
+            </div>
+
+
+            <div>
+
+                <small style="color:var(--muted)">
+                    Entrades · switches
+                </small>
+
+
+                <div
+                    class="switches"
+                    id="switches">
+
+                </div>
+
+            </div>
+
+
+        </div>
+
+    </div>
+
+</div>
+
+
+</aside>
+
+</div>
+
+</main>
+
+
+
+<script>
+
+
+/* =====================================================
+   JOC D'INSTRUCCIONS
+===================================================== */
+
+const OPS = {
+
+    LDAI:{
+        code:0,
+        fmt:'LDA #N',
+        desc:'AC ← N'
+    },
+
+    LDAM:{
+        code:1,
+        fmt:'LDA [N]',
+        desc:'AC ← M[N]'
+    },
+
+    STA:{
+        code:2,
+        fmt:'STA [N]',
+        desc:'M[N] ← AC'
+    },
+
+    ADDI:{
+        code:3,
+        fmt:'ADD #N',
+        desc:'AC ← AC + N'
+    },
+
+    ADDM:{
+        code:4,
+        fmt:'ADD [N]',
+        desc:'AC ← AC + M[N]'
+    },
+
+    SUBI:{
+        code:5,
+        fmt:'SUB #N',
+        desc:'AC ← AC − N'
+    },
+
+    JMP:{
+        code:6,
+        fmt:'JMP N',
+        desc:'PC ← N'
+    },
+
+    JZ:{
+        code:7,
+        fmt:'JZ N',
+        desc:'salta si Z=1'
+    },
+
+    OUT:{
+        code:8,
+        fmt:'OUT N',
+        desc:'port ← AC'
+    },
+
+    IN:{
+        code:9,
+        fmt:'IN N',
+        desc:'AC ← port'
+    },
+
+    MUL:{
+        code:10,
+        fmt:'MUL #N',
+        desc:'AC ← AC × N'
+    },
+
+    DIV:{
+        code:11,
+        fmt:'DIV #N',
+        desc:'AC ← AC ÷ N'
+    },
+
+    MOD:{
+        code:12,
+        fmt:'MOD #N',
+        desc:'AC ← AC mod N'
+    },
+
+    NOP:{
+        code:14,
+        fmt:'NOP',
+        desc:'no fa res'
+    },
+
+    HLT:{
+        code:15,
+        fmt:'HLT',
+        desc:'atura la CPU'
+    }
+
+};
+
+
+const byCode =
+    Object.fromEntries(
+        Object.values(OPS)
+        .map(x => [x.code,x])
+    );
+
+
+
+/* =====================================================
+   ESTADO
+===================================================== */
+
+let mem =
+    new Uint8Array(256);
+
+let program = [];
+
+let labels = {};
+
+let state = {
+
+    pc:0,
+    ir:0,
+    ac:0,
+    mar:0,
+    mdr:0,
+    z:0,
+    halt:true,
+    cycle:0,
+    run:null
+
+};
+
+let inputs =
+    new Uint8Array(8);
+
+let outputs =
+    new Uint8Array(8);
+
+
+
+/* =====================================================
+   FUNCIONES AUXILIARES
+===================================================== */
+
+function hex(n,w=2){
+
+    return (n >>> 0)
+        .toString(16)
+        .toUpperCase()
+        .padStart(w,'0');
+
+}
+
+
+function setText(id,value){
+
+    document
+        .getElementById(id)
+        .textContent = value;
+
+}
+
+
+function log(message,cls=''){
+
+    const element =
+        document.getElementById('log');
+
+    element.innerHTML +=
+        `<div class="${cls}">
+            ${message}
+        </div>`;
+
+    element.scrollTop =
+        element.scrollHeight;
+
+}
+
+
+function parseNum(value){
+
+    value = value.trim();
+
+    if(/^0x/i.test(value))
+        return parseInt(value,16);
+
+    if(/^0b/i.test(value))
+        return parseInt(value.slice(2),2);
+
+    return parseInt(value,10);
+
+}
+
+
+function tokenize(line){
+
+    return line
+        .replace(/;.*/,'')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+
+}
+
+
+
+/* =====================================================
+   ASSEMBLER
+===================================================== */
+
+function compile(){
+
+    stop();
+
+    mem.fill(0);
+
+    program = [];
+
+    labels = {};
+
+    document.getElementById('log').innerHTML='';
+
+
+    const lines =
+        document
+        .getElementById('editor')
+        .value
+        .split('\n');
+
+
+    let pc = 0;
+
+
+    /*
+       PRIMERA PASSADA
+
+       Detectar etiquetas
+    */
+
+    for(let raw of lines){
+
+        let clean =
+            raw
+            .replace(/;.*/,'')
+            .trim();
+
+
+        if(!clean)
+            continue;
+
+
+        if(clean.includes(':')){
+
+            let parts =
+                clean.split(':');
+
+            let label =
+                parts[0]
+                .trim()
+                .toUpperCase();
+
+
+            labels[label] = pc;
+
+
+            clean =
+                parts
+                .slice(1)
+                .join(':')
+                .trim();
+
+
+            if(!clean)
+                continue;
+
+        }
+
+
+        pc += 2;
+
+    }
+
+
+
+    /*
+       SEGUNDA PASSADA
+
+       Generar código máquina
+    */
+
+    pc = 0;
+
+
+    for(let raw of lines){
+
+        let clean =
+            raw
+            .replace(/;.*/,'')
+            .trim();
+
+
+        if(!clean)
+            continue;
+
+
+        if(clean.includes(':')){
+
+            clean =
+                clean
+                .split(':')
+                .slice(1)
+                .join(':')
+                .trim();
+
+        }
+
+
+        if(!clean)
+            continue;
+
+
+        let t =
+            tokenize(clean);
+
+
+        let op =
+            t[0].toUpperCase();
+
+
+        let arg =
+            t[1] || '';
+
+
+        let key = op;
+
+
+        if(op === 'LDA')
+            key =
+                arg.startsWith('#')
+                ? 'LDAI'
+                : 'LDAM';
+
+
+        if(op === 'ADD')
+            key =
+                arg.startsWith('#')
+                ? 'ADDI'
+                : 'ADDM';
+
+
+        if(op === 'SUB')
+            key = 'SUBI';
+
+
+        if(!OPS[key]){
+
+            throw new Error(
+                'Instrucció desconeguda: ' + op
+            );
+
+        }
+
+
+        let n = 0;
+
+
+        if(arg){
+
+            let a =
+                arg.replace(
+                    /^[#\[]|]$/g,
+                    ''
+                );
+
+
+            n =
+                labels[a.toUpperCase()]
+                ??
+                parseNum(a);
+
+
+            if(Number.isNaN(n)){
+
+                throw new Error(
+                    'Operand invàlid: ' + arg
+                );
+
+            }
+
+        }
+
+
+        n &= 255;
+
+
+        program.push({
+
+            pc:pc,
+
+            op:key,
+
+            arg:n,
+
+            text:clean
+
+        });
+
+
+        mem[pc] =
+            OPS[key].code;
+
+
+        mem[pc+1] =
+            n;
+
+
+        pc += 2;
+
+    }
+
+
+    reset(false);
+
+    renderAll();
+
+
+    log(
+        `Assemblatge correcte: ${program.length} instruccions · ${pc} bytes.`,
+        'ok'
+    );
+
+}
+
+
+
+/* =====================================================
+   RESET
+===================================================== */
+
+function reset(clearLog=true){
+
+    stop();
+
+
+    state = {
+
+        pc:0,
+        ir:0,
+        ac:0,
+        mar:0,
+        mdr:0,
+        z:0,
+        halt:program.length===0,
+        cycle:0,
+        run:null
+
+    };
+
+
+    outputs.fill(0);
+
+
+    if(clearLog){
+
+        document
+            .getElementById('log')
+            .innerHTML='';
+
+    }
+
+
+    renderAll();
+
+}
+
+
+
+/* =====================================================
+   STOP
+===================================================== */
+
+function stop(){
+
+    if(state.run){
+
+        clearInterval(state.run);
+
+        state.run=null;
+
+    }
+
+
+    state.halt=true;
+
+    document
+        .body
+        .classList
+        .remove('running');
+
+
+    setText(
+        'status',
+        'Aturat'
+    );
+
+}
+
+
+
+/* =====================================================
+   FETCH
+===================================================== */
+
+function fetchInstr(){
+
+    state.mar =
+        state.pc;
+
+
+    state.ir =
+        (
+            mem[state.pc] << 8
+        )
+        |
+        mem[
+            (state.pc + 1) & 255
+        ];
+
+
+    state.mdr =
+        mem[
+            (state.pc + 1) & 255
+        ];
+
+
+    let code =
+        mem[state.pc];
+
+
+    let arg =
+        mem[
+            (state.pc + 1) & 255
+        ];
+
+
+    return {
+
+        ins:byCode[code],
+
+        arg:arg
+
+    };
+
+}
+
+
+
+/* =====================================================
+   EXECUTAR UNA INSTRUCCIÓ
+===================================================== */
+
+function step(){
+
+    if(program.length === 0){
+
+        log(
+            'Primer has d\'assemblar el programa.',
+            'warn'
+        );
+
+        return;
+
+    }
+
+
+    if(state.halt){
+
+        state.halt=false;
+
+    }
+
+
+    if(state.pc >= 256){
+
+        stop();
+
+        return;
+
+    }
+
+
+    const f =
+        fetchInstr();
+
+
+    const ins =
+        f.ins;
+
+
+    const arg =
+        f.arg;
+
+
+    state.cycle++;
+
+
+    const oldpc =
+        state.pc;
+
+
+    state.pc =
+        (state.pc + 2) & 255;
+
+
+    if(!ins){
+
+        log(
+            `0x${hex(oldpc)}: opcode desconegut`,
+            'err'
+        );
+
+        stop();
+
+        return;
+
+    }
+
+
+    switch(ins.code){
+
+        case 0:
+
+            state.ac =
+                arg;
+
+            break;
+
+
+        case 1:
+
+            state.ac =
+                mem[arg];
+
+            break;
+
+
+        case 2:
+
+            mem[arg] =
+                state.ac & 255;
+
+            break;
+
+
+        case 3:
+
+            state.ac =
+                (
+                    state.ac + arg
+                ) & 255;
+
+            break;
+
+
+        case 4:
+
+            state.ac =
+                (
+                    state.ac + mem[arg]
+                ) & 255;
+
+            break;
+
+
+        case 5:
+
+            state.ac =
+                (
+                    state.ac - arg
+                ) & 255;
+
+            break;
+
+
+        case 6:
+
+            state.pc =
+                arg;
+
+            break;
+
+
+        case 7:
+
+            if(state.z){
+
+                state.pc =
+                    arg;
+
+            }
+
+            break;
+
+
+        case 8:
+
+            outputs[
+                arg & 7
+            ] =
+                state.ac & 255;
+
+            break;
+
+
+        case 9:
+
+            state.ac =
+                inputs[
+                    arg & 7
+                ];
+
+            break;
+
+
+        case 10:
+
+            state.ac =
+                (
+                    state.ac * arg
+                ) & 255;
+
+            break;
+
+
+        case 11:
+
+            state.ac =
+                arg
+                ?
+                Math.floor(
+                    state.ac / arg
+                )
+                :
+                0;
+
+            break;
+
+
+        case 12:
+
+            state.ac =
+                arg
+                ?
+                state.ac % arg
+                :
+                0;
+
+            break;
+
+
+        case 14:
+
+            break;
+
+
+        case 15:
+
+            state.halt=true;
+
+            break;
+
+    }
+
+
+    state.z =
+        state.ac === 0
+        ?
+        1
+        :
+        0;
+
+
+    state.mar =
+        state.pc;
+
+
+    state.mdr =
+        mem[state.pc];
+
+
+    renderAll();
+
+
+    log(
+
+        `C${String(state.cycle).padStart(3,'0')} · ` +
+        `${hex(oldpc)} · ` +
+        `${ins.fmt.replace('N',hex(arg))} · ` +
+        `AC=${hex(state.ac)} · ` +
+        `PC=${hex(state.pc)}` +
+        (
+            ins.code === 15
+            ?
+            ' · HLT'
+            :
+            ''
+        ),
+
+        ins.code === 15
+        ?
+        'warn'
+        :
+        ''
+
+    );
+
+
+    if(state.halt){
+
+        stop();
+
+    }
+
+}
+
+
+
+/* =====================================================
+   RENDERIZAR INTERFAZ
+===================================================== */
+
+function renderAll(){
+
+    setText(
+        'pc',
+        hex(state.pc)
+    );
+
+
+    setText(
+        'ir',
+        hex(state.ir,4)
+    );
+
+
+    setText(
+        'ac',
+        hex(state.ac)
+    );
+
+
+    setText(
+        'mar',
+        hex(state.mar)
+    );
+
+
+    setText(
+        'mdr',
+        hex(state.mdr)
+    );
+
+
+    setText(
+        'z',
+        state.z
+    );
+
+
+    setText(
+        'cycle',
+        state.cycle || '—'
+    );
+
+
+    setText(
+        'cpuState',
+        state.halt
+        ?
+        'Aturat'
+        :
+        'Executant'
+    );
+
+
+
+    /*
+       MEMORIA
+    */
+
+    const memEl =
+        document
+        .getElementById('memory');
+
+
+    memEl.innerHTML='';
+
+
+    for(let i=0;i<256;i++){
+
+        let d =
+            document
+            .createElement('div');
+
+
+        d.className =
+            'cell'
+            +
+            (
+                i === state.pc
+                ?
+                ' pc'
+                :
+                ''
+            )
+            +
+            (
+                mem[i]
+                ?
+                ' active'
+                :
+                ''
+            );
+
+
+        d.title =
+            `0x${hex(i)} = ${mem[i]}`;
+
+
+        d.innerHTML =
+            `<span class="addr">
+                ${hex(i)}
+            </span>
+            ${hex(mem[i])}`;
+
+
+        memEl.appendChild(d);
+
+    }
+
+
+
+    /*
+       CODIGO MAQUINA
+    */
+
+    const machine =
+        document
+        .getElementById('machine');
+
+
+    machine.innerHTML='';
+
+
+    program
+        .slice(0,32)
+        .forEach(p=>{
+
+            let d =
+                document
+                .createElement('div');
+
+
+            d.className =
+                p.pc === state.pc
+                ?
+                'active'
+                :
+                '';
+
+
+            d.textContent =
+                `${hex(p.pc)}: ` +
+                `${hex(mem[p.pc])}` +
+                `${hex(mem[p.pc+1])}`;
+
+
+            machine.appendChild(d);
+
+        });
+
+
+
+    /*
+       LEDS
+    */
+
+    document
+        .querySelectorAll('.led')
+        .forEach((x,i)=>{
+
+            x.classList.toggle(
+                'on',
+                outputs[i] > 0
+            );
+
+        });
+
+}
+
+
+
+/* =====================================================
+   INICIALIZAR ISA
+===================================================== */
+
+function init(){
+
+    const isa =
+        document
+        .getElementById('isa');
+
+
+    isa.innerHTML='';
+
+
+    Object
+        .values(OPS)
+        .forEach(o=>{
+
+            let d =
+                document
+                .createElement('div');
+
+
+            d.className =
+                'ins';
+
+
+            d.innerHTML =
+                `<b>
+                    ${hex(o.code,1)} · ${o.fmt}
+                </b>
+
+                <span>
+                    ${o.desc}
+                </span>`;
+
+
+            isa.appendChild(d);
+
+        });
+
+
+
+    /*
+       LEDS Y SWITCHES
+    */
+
+    const leds =
+        document
+        .getElementById('leds');
+
+
+    const switches =
+        document
+        .getElementById('switches');
+
+
+    for(let i=0;i<8;i++){
+
+        let led =
+            document
+            .createElement('i');
+
+
+        led.className =
+            'led';
+
+
+        leds.appendChild(led);
+
+
+        let button =
+            document
+            .createElement('button');
+
+
+        button.className =
+            'sw';
+
+
+        button.textContent =
+            i;
+
+
+        button.onclick =
+            ()=>{
+
+                inputs[i] ^= 1;
+
+                button.classList.toggle(
+                    'on',
+                    !!inputs[i]
+                );
+
+            };
+
+
+        switches.appendChild(button);
+
+    }
+
+
+    renderAll();
+
+}
+
+
+
+/* =====================================================
+   EVENTOS
+===================================================== */
+
+
+/*
+   ASSEMBLAR
+*/
+
+document
+    .getElementById('assemble')
+    .onclick = ()=>{
+
+        try{
+
+            compile();
+
+        }
+
+        catch(e){
+
+            log( llamado index.html.
+
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Microbi 2.0 — Simulador Von Neumann</title>
+
+<style>
+
+:root{
+    --bg:#07111f;
+    --panel:#0d1b2e;
+    --panel2:#10243b;
+    --line:#203852;
+    --text:#e7f0fb;
+    --muted:#8da4bd;
+    --cyan:#39d0ff;
+    --green:#39e58c;
+    --amber:#ffc857;
+    --red:#ff637d;
+    --purple:#a78bfa;
+    --shadow:0 18px 50px #0005;
+}
+
+*{
+    box-sizing:border-box;
+}
+
+body{
+    margin:0;
+    background:
+        radial-gradient(
+            circle at 70% 0,
+            #123557 0,
+            #07111f 38%,
+            #050c16 100%
+        );
+    color:var(--text);
+    font-family:
+        Inter,
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+    line-height:1.45;
+}
+
+
+/* =========================
+   CABECERA
+========================= */
+
+header{
+    height:72px;
+    border-bottom:1px solid var(--line);
+    background:#081526e8;
+    backdrop-filter:blur(12px);
+
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+
+    padding:0 28px;
+
+    position:sticky;
+    top:0;
+    z-index:20;
+}
+
+.brand{
+    display:flex;
+    align-items:center;
+    gap:12px;
+}
+
+.chip{
+    width:42px;
+    height:42px;
+
+    border:1px solid #3ad8ff66;
+    border-radius:12px;
+
+    display:grid;
+    place-items:center;
+
+    background:#0e3047;
+    color:var(--cyan);
+
+    font-size:22px;
+
+    box-shadow:0 0 25px #39d0ff22;
+}
+
+.brand b{
+    font-size:18px;
+}
+
+.brand small{
+    display:block;
+    color:var(--muted);
+    font-size:11px;
+}
+
+.status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+
+    color:var(--muted);
+}
+
+.dot{
+    width:8px;
+    height:8px;
+
+    border-radius:50%;
+
+    background:var(--red);
+
+    box-shadow:0 0 10px currentColor;
+}
+
+.running .dot{
+    background:var(--green);
+}
+
+
+/* =========================
+   CONTENIDO PRINCIPAL
+========================= */
+
+main{
+    max-width:1500px;
+    margin:auto;
+    padding:26px;
+}
+
+.layout{
+    display:grid;
+    grid-template-columns:1.25fr .75fr;
+    gap:18px;
+}
+
+.stack{
+    display:grid;
+    gap:18px;
+}
+
+
+/* =========================
+   PANELES
+========================= */
+
+.panel{
+    background:
+        linear-gradient(
+            145deg,
+            #0d1b2e,
+            #0a1727
+        );
+
+    border:1px solid var(--line);
+    border-radius:16px;
+
+    box-shadow:var(--shadow);
+
+    overflow:hidden;
+}
+
+.head{
+    padding:15px 18px;
+
+    border-bottom:1px solid var(--line);
+
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.head h2{
+    font-size:14px;
+    margin:0;
+    letter-spacing:.2px;
+}
+
+.head span{
+    color:var(--muted);
+    font-size:11px;
+}
+
+.body{
+    padding:16px;
+}
+
+
+/* =========================
+   EDITOR
+========================= */
+
+textarea{
+    width:100%;
+    height:260px;
+
+    resize:vertical;
+
+    background:#06101c;
+    color:#b9e8ff;
+
+    border:1px solid #24435f;
+    border-radius:12px;
+
+    padding:15px;
+
+    font:
+        13px/1.65
+        "JetBrains Mono",
+        Consolas,
+        monospace;
+
+    outline:none;
+
+    tab-size:4;
+}
+
+textarea:focus{
+    border-color:var(--cyan);
+
+    box-shadow:
+        0 0 0 3px
+        #39d0ff12;
+}
+
+
+/* =========================
+   BOTONES
+========================= */
+
+.toolbar{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+
+    margin-top:11px;
+}
+
+.btn{
+    border:1px solid #294761;
+
+    background:#132a42;
+
+    color:#dcecff;
+
+    border-radius:9px;
+
+    padding:9px 13px;
+
+    cursor:pointer;
+
+    font-weight:700;
+}
+
+.btn:hover{
+    border-color:#4e789b;
+    background:#183653;
+}
+
+.btn.primary{
+    background:#087ca3;
+    border-color:#13bce9;
+    color:white;
+}
+
+.btn.green{
+    background:#11663f;
+    border-color:#29d17d;
+}
+
+.btn.red{
+    background:#61283a;
+    border-color:#e95773;
+}
+
+.btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
+
+/* =========================
+   CPU
+========================= */
+
+.cpu-grid{
+    display:grid;
+
+    grid-template-columns:
+        repeat(3,1fr);
+
+    gap:9px;
+}
+
+.reg{
+    background:#071321;
+
+    border:1px solid #1d3852;
+
+    border-radius:10px;
+
+    padding:10px;
+}
+
+.reg label{
+    display:block;
+
+    color:var(--muted);
+
+    font:
+        10px
+        monospace;
+
+    margin-bottom:4px;
+}
+
+.reg strong{
+    font:
+        700 16px
+        monospace;
+
+    color:var(--cyan);
+}
+
+.flag{
+    color:var(--amber)!important;
+}
+
+.state{
+    margin-top:10px;
+
+    border-radius:9px;
+
+    padding:9px 11px;
+
+    background:#081625;
+
+    border:1px solid #1c344c;
+
+    color:var(--muted);
+}
+
+.state b{
+    color:var(--text);
+}
+
+
+/* =========================
+   MEMORIA
+========================= */
+
+.memory{
+    display:grid;
+
+    grid-template-columns:
+        repeat(16,1fr);
+
+    gap:4px;
+}
+
+.cell{
+    height:31px;
+
+    border:1px solid #183149;
+
+    background:#071321;
+
+    border-radius:4px;
+
+    display:grid;
+    place-items:center;
+
+    font:
+        9px
+        monospace;
+
+    color:#7892aa;
+
+    cursor:pointer;
+
+    position:relative;
+}
+
+.cell:hover{
+    border-color:#4a7392;
+}
+
+.cell.active{
+    background:#123e54;
+    border-color:var(--cyan);
+    color:#fff;
+}
+
+.cell.pc{
+    outline:
+        2px solid
+        var(--amber);
+
+    outline-offset:-2px;
+}
+
+.cell .addr{
+    position:absolute;
+
+    top:1px;
+    left:3px;
+
+    font-size:7px;
+
+    color:#49627a;
+}
+
+
+/* =========================
+   CODIGO MAQUINA
+========================= */
+
+.machine{
+    font:
+        11px
+        monospace;
+
+    display:grid;
+
+    grid-template-columns:
+        repeat(8,1fr);
+
+    gap:5px;
+}
+
+.machine div{
+    padding:6px;
+
+    background:#071321;
+
+    border:1px solid #173149;
+
+    border-radius:5px;
+
+    text-align:center;
+}
+
+.machine .active{
+    border-color:var(--cyan);
+    color:var(--cyan);
+}
+
+
+/* =========================
+   INSTRUCCIONES
+========================= */
+
+.isa{
+    display:grid;
+
+    grid-template-columns:
+        repeat(2,1fr);
+
+    gap:6px;
+}
+
+.ins{
+    display:flex;
+
+    justify-content:space-between;
+
+    padding:7px 9px;
+
+    background:#081625;
+
+    border:1px solid #19334c;
+
+    border-radius:7px;
+
+    font:
+        11px
+        monospace;
+}
+
+.ins b{
+    color:var(--cyan);
+}
+
+.ins span{
+    color:var(--muted);
+}
+
+
+/* =========================
+   ENTRADAS / SALIDAS
+========================= */
+
+.io{
+    display:grid;
+
+    grid-template-columns:
+        1fr 1fr;
+
+    gap:12px;
+}
+
+.leds{
+    display:flex;
+
+    gap:7px;
+
+    flex-wrap:wrap;
+}
+
+.led{
+    width:22px;
+    height:22px;
+
+    border-radius:50%;
+
+    background:#2b1720;
+
+    border:2px solid #512637;
+}
+
+.led.on{
+    background:#ff526e;
+
+    border-color:#ff8a9b;
+
+    box-shadow:
+        0 0 14px
+        #ff526e;
+}
+
+.switches{
+    display:grid;
+
+    grid-template-columns:
+        repeat(8,1fr);
+
+    gap:5px;
+}
+
+.sw{
+    height:34px;
+
+    border:1px solid #29435b;
+
+    background:#0a1929;
+
+    border-radius:6px;
+
+    color:#71879b;
+
+    cursor:pointer;
+}
+
+.sw.on{
+    background:#17573e;
+
+    color:var(--green);
+
+    border-color:#2acb7b;
+}
+
+
+/* =========================
+   LOG
+========================= */
+
+.log{
+    height:170px;
+
+    overflow:auto;
+
+    background:#050c14;
+
+    border:1px solid #183149;
+
+    border-radius:10px;
+
+    padding:10px;
+
+    font:
+        11px/1.7
+        monospace;
+
+    color:#91a8bc;
+}
+
+.log .ok{
+    color:var(--green);
+}
+
+.log .warn{
+    color:var(--amber);
+}
+
+.log .err{
+    color:var(--red);
+}
+
+
+/* =========================
+   TEXTO
+========================= */
+
+.tip{
+    color:var(--muted);
+
+    font-size:12px;
+
+    margin:
+        0 0 12px;
+}
+
+.speed{
+    display:flex;
+
+    align-items:center;
+
+    gap:10px;
+
+    color:var(--muted);
+
+    font-size:12px;
+
+    margin-top:12px;
+}
+
+.speed input{
+    accent-color:var(--cyan);
+}
+
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:1050px){
+
+    .layout{
+        grid-template-columns:1fr;
+    }
+
+    .isa{
+        grid-template-columns:
+            repeat(3,1fr);
+    }
+
+}
+
+
+@media(max-width:650px){
+
+    main{
+        padding:12px;
+    }
+
+    .memory{
+        grid-template-columns:
+            repeat(8,1fr);
+    }
+
+    .cpu-grid{
+        grid-template-columns:
+            repeat(2,1fr);
+    }
+
+    .isa{
+        grid-template-columns:1fr;
+    }
+
+    .io{
+        grid-template-columns:1fr;
+    }
+
+    header{
+        padding:0 14px;
+    }
+
+    .brand small{
+        display:none;
+    }
+
+}
+
+</style>
+</head>
+
+
+<body>
+
+
+<header>
+
+    <div class="brand">
+
+        <div class="chip">
+            µ
+        </div>
+
+        <div>
+
+            <b>
+                Microbi 2.0
+            </b>
+
+            <small>
+                Simulador de microprocessador educatiu
+            </small>
+
+        </div>
+
+    </div>
+
+
+    <div class="status" id="status">
+
+        <i class="dot"></i>
+
+        <span>
+            Aturat
+        </span>
+
+    </div>
+
+</header>
+
+
+
+<main>
+
+
+<div class="layout">
+
+
+<!-- =====================================================
+     COLUMNA ESQUERRA
+===================================================== -->
+
+<section class="stack">
+
+
+<!-- EDITOR -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            📝 Editor Assembler
+        </h2>
+
+        <span>
+            Programa
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <p class="tip">
+
+            Escriu una instrucció per línia.
+            Els comentaris comencen amb
+            <b>;</b>.
+
+            Exemple:
+
+            <b>LDA #6</b>
+
+            ·
+
+            <b>MUL #7</b>
+
+            ·
+
+            <b>OUT 0</b>
+
+            ·
+
+            <b>HLT</b>
+
+        </p>
+
+
+<textarea id="editor" spellcheck="false">; 6 × 7 = 42
+LDA #6
+MUL #7
+OUT 0
+HLT</textarea>
+
+
+        <div class="toolbar">
+
+            <button
+                class="btn primary"
+                id="assemble">
+
+                ⚙️ Assemblar
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="clear">
+
+                🗑️ Netejar
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="example">
+
+                ✨ Exemple
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="loop">
+
+                🔁 Exemple bucle
+
+            </button>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- MEMORIA -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            💾 Memòria · 256 bytes
+        </h2>
+
+        <span>
+            0x00–0xFF
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="memory"
+            id="memory">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- CODIGO MAQUINA -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            🔢 Codi màquina
+        </h2>
+
+        <span>
+            Opcode + operand
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="machine"
+            id="machine">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- LOG -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            📜 Log d'execució
+        </h2>
+
+        <span>
+            Fetch → Decode → Execute
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="log"
+            id="log">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+</section>
+
+
+
+<!-- =====================================================
+     COLUMNA DRETA
+===================================================== -->
+
+<aside class="stack">
+
+
+<!-- CPU -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            🧠 CPU
+        </h2>
+
+        <span>
+            Von Neumann
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+
+        <div class="cpu-grid">
+
+
+            <div class="reg">
+
+                <label>
+                    PC · Program Counter
+                </label>
+
+                <strong id="pc">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    IR · Instruction Register
+                </label>
+
+                <strong id="ir">
+                    0000
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    AC · Accumulator
+                </label>
+
+                <strong id="ac">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    MAR · Memory Address
+                </label>
+
+                <strong id="mar">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    MDR · Memory Data
+                </label>
+
+                <strong id="mdr">
+                    00
+                </strong>
+
+            </div>
+
+
+            <div class="reg">
+
+                <label>
+                    Z · Zero flag
+                </label>
+
+                <strong
+                    class="flag"
+                    id="z">
+
+                    0
+
+                </strong>
+
+            </div>
+
+
+        </div>
+
+
+        <div class="state">
+
+            Estat:
+
+            <b id="cpuState">
+                Aturat
+            </b>
+
+            ·
+
+            Cicle:
+
+            <b id="cycle">
+                —
+            </b>
+
+        </div>
+
+
+        <div class="toolbar">
+
+
+            <button
+                class="btn"
+                id="step">
+
+                ⏭️ Step
+
+            </button>
+
+
+            <button
+                class="btn green"
+                id="run">
+
+                ▶️ Run
+
+            </button>
+
+
+            <button
+                class="btn red"
+                id="pause">
+
+                ⏸️ Pause
+
+            </button>
+
+
+            <button
+                class="btn"
+                id="reset">
+
+                ⟲ Reset
+
+            </button>
+
+
+        </div>
+
+
+        <div class="speed">
+
+            Velocitat
+
+            <input
+                id="speed"
+                type="range"
+                min="1"
+                max="12"
+                value="5">
+
+            <b id="speedVal">
+                5 Hz
+            </b>
+
+        </div>
+
+
+    </div>
+
+</div>
+
+
+
+<!-- ISA -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            📚 Joc d'instruccions
+        </h2>
+
+        <span>
+            ISA
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div
+            class="isa"
+            id="isa">
+
+        </div>
+
+    </div>
+
+</div>
+
+
+
+<!-- E/S -->
+
+<div class="panel">
+
+    <div class="head">
+
+        <h2>
+            🔌 E/S
+        </h2>
+
+        <span>
+            Ports 0–7
+        </span>
+
+    </div>
+
+
+    <div class="body">
+
+        <div class="io">
+
+
+            <div>
+
+                <small style="color:var(--muted)">
+                    Eixides · LEDs
+                </small>
+
+
+                <div
+                    class="leds"
+                    id="leds">
+
+                </div>
+
+            </div>
+
+
+            <div>
+
+                e.message,
+                'err'
+            );
+
+            alert(
+                e.message
+            );
+
+        }
+
+    };
+
+
+
+/*
+   LIMPIAR
+*/
+
+document
+    .getElementById('clear')
+    .onclick = ()=>{
+
+        document
+            .getElementById('editor')
+            .value='';
+
+
+        reset();
+
+
+        document
+            .getElementById('log')
+            .innerHTML='';
+
+    };
+
+
+
+/*
+   EJEMPLO
+*/
+
+document
+    .getElementById('example')
+    .onclick = ()=>{
+
+        document
+            .getElementById('editor')
+            .value =
+`; 6 × 7 = 42
+LDA #6
+MUL #7
+OUT 0
+HLT`;
+
+        compile();
+
+    };
+
+
+
+/*
+   EJEMPLO BUCLE
+*/
+
+document
+    .getElementById('loop')
+    .onclick = ()=>{
+
+        document
+            .getElementById('editor')
+            .value =
+`; Compte 5,4,3,2,1
+LDA #5
+loop: OUT 0
+SUB #1
+JZ fi
+JMP loop
+fi: HLT`;
+
+        compile();
+
+    };
+
+
+
+/*
+   STEP
+*/
+
+document
+    .getElementById('step')
+    .onclick =
+        step;
+
+
+
+/*
+   RESET
+*/
+
+document
+    .getElementById('reset')
+    .onclick =
+        ()=>reset();
+
+
+
+/*
+   PAUSE
+*/
+
+document
+    .getElementById('pause')
+    .onclick =
+        stop;
+
+
+
+/*
+   RUN
+*/
+
+document
+    .getElementById('run')
+    .onclick = ()=>{
+
+        if(program.length === 0){
+
+            try{
+
+                compile();
+
+            }
+
+            catch(e){
+
+                return;
+
+            }
+
+        }
+
+
+        if(state.halt){
+
+            state.halt=false;
+
+        }
+
+
+        stop();
+
+
+        state.halt=false;
+
+
+        document
+            .body
+            .classList
+            .add('running');
+
+
+        setText(
+            'status',
+            'Executant'
+        );
+
+
+        let hz =
+            +document
+            .getElementById('speed')
+            .value;
+
+
+        state.run =
+            setInterval(
+                ()=>{
+
+                    if(state.halt){
+
+                        stop();
+
+                    }
+
+                    else{
+
+                        step();
+
+                    }
+
+                },
+                1000 / hz
+            );
+
+    };
+
+
+
+/*
+   VELOCIDAD
+*/
+
+document
+    .getElementById('speed')
+    .oninput =
+        e=>{
+
+            setText(
+                'speedVal',
+                e.target.value + ' Hz'
+            );
+
+        };
+
+
+
+/*
+   INICIAR
+*/
+
+init();
+
+</script>
+
+
+</body>
 </html>
